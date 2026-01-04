@@ -3,6 +3,7 @@ from app_components import clear_background
 from system.eventbus import eventbus
 from events.input import BUTTON_TYPES, Buttons, Button, ButtonDownEvent, ButtonUpEvent
 from machine import I2C
+from system.hexpansion.config import *
 
 from .app_components_dialog import KEYBOARD_BUTTONS, TextDialog
 
@@ -16,7 +17,7 @@ KEYCODES = [
     "CIRCLE",  # 0x5
     "CLOUD",  # 0x6
     "DIAMOND",  # 0x7
-    "DELETE",  # 0x8
+    "BACKSPACE",  # 0x8
     "0",  # 0x9
     "MINUS",  # 0xa
     "GRAVE",  # 0xb
@@ -49,7 +50,7 @@ KEYCODES = [
     "J",  # 0x26
     "K",  # 0x27
     "L",  # 0x28
-    "SHIFT",  # 0x29
+    "LSHIFT",  # 0x29
     "Z",  # 0x2a
     "X",  # 0x2b
     "C",  # 0x2c
@@ -64,7 +65,7 @@ KEYCODES = [
     "RIGHT",  # 0x35
     "SLASH",  # 0x36
     "UP",  # 0x37
-    "SHIFT",  # 0x38
+    "RSHIFT",  # 0x38
     "SEMICOLON",  # 0x39
     "APOSTROPHE",  # 0x3a
     "ENTER",  # 0x3b
@@ -90,6 +91,43 @@ KEYCODES = [
     "UNKNOWN",  # 0x4f
     "RIGHTBRACKET",  # 0x50
 ]
+
+BUTON_MAP = {
+    "A": KEYBOARD_BUTTONS["A"],
+    "B": KEYBOARD_BUTTONS["B"],
+    "C": KEYBOARD_BUTTONS["C"],
+    "D": KEYBOARD_BUTTONS["D"],
+    "E": KEYBOARD_BUTTONS["E"],
+    "F": KEYBOARD_BUTTONS["F"],
+    "G": KEYBOARD_BUTTONS["G"],
+    "H": KEYBOARD_BUTTONS["H"],
+    "I": KEYBOARD_BUTTONS["I"],
+    "J": KEYBOARD_BUTTONS["J"],
+    "K": KEYBOARD_BUTTONS["K"],
+    "L": KEYBOARD_BUTTONS["L"],
+    "M": KEYBOARD_BUTTONS["M"],
+    "N": KEYBOARD_BUTTONS["N"],
+    "O": KEYBOARD_BUTTONS["O"],
+    "P": KEYBOARD_BUTTONS["P"],
+    "Q": KEYBOARD_BUTTONS["Q"],
+    "R": KEYBOARD_BUTTONS["R"],
+    "S": KEYBOARD_BUTTONS["S"],
+    "T": KEYBOARD_BUTTONS["T"],
+    "U": KEYBOARD_BUTTONS["U"],
+    "V": KEYBOARD_BUTTONS["V"],
+    "W": KEYBOARD_BUTTONS["W"],
+    "X": KEYBOARD_BUTTONS["X"],
+    "Y": KEYBOARD_BUTTONS["Y"],
+    "Z": KEYBOARD_BUTTONS["Z"],
+    "SPACE": KEYBOARD_BUTTONS["SPACE"],
+    "LEFT": KEYBOARD_BUTTONS["LEFT"],
+    "RIGHT": KEYBOARD_BUTTONS["RIGHT"],
+    "UP": KEYBOARD_BUTTONS["UP"],
+    "DOWN": KEYBOARD_BUTTONS["DOWN"],
+    "ESCAPE": KEYBOARD_BUTTONS["ESCAPE"],
+    "ENTER": KEYBOARD_BUTTONS["ENTER"],
+    "BACKSPACE": KEYBOARD_BUTTONS["DELETE"],
+}
 
 
 class KeyboardApp(App):
@@ -120,53 +158,12 @@ class KeyboardApp(App):
                 on_complete=self._complete_handler,
                 on_cancel=self._cancel_handler,
             )
-
-        if self.initialized:
-            # TODO: use interrupt and amount from 0x03
-            # instead of doing this in update
-            n = self.i2c.readfrom_mem(self.ADDR, 0x04, 1)
-            pressed = bool(n[0] & 0x80)
-            key = n[0] & 0x7F
-            if key > 0:
-                if pressed:
-                    eventbus.emit(
-                        ButtonDownEvent(
-                            button=KEYBOARD_BUTTONS[KEYCODES[key]],
-                        )
-                    )
-                else:
-                    eventbus.emit(
-                        ButtonUpEvent(
-                            button=KEYBOARD_BUTTONS[KEYCODES[key]],
-                        )
-                    )
-            if key != 0:
-                print(pressed)
-                print(key)
         if self.displayed:
             return
         if self.button_states.get(BUTTON_TYPES["CONFIRM"]):
-            print("initializing keyboard")
-            self.ADDR = 0x34
-            self.i2c = I2C(4)
-            # Based on https://github.com/Hack-a-Day/2025-Communicator_Badge/blob/main/firmware/badge/hardware/keyboard.py
-            self.i2c.writeto_mem(
-                self.ADDR, 0x1D, b"\xff"
-            )  # KP_GPIO1 all ROW7:0 to KP matrix
-            self.i2c.writeto_mem(
-                self.ADDR, 0x1E, b"\xff"
-            )  # KP_GPIO2 all COL7:0 to KP matrix
-            self.i2c.writeto_mem(
-                self.ADDR, 0x1F, b"\x03"
-            )  # KP_GPIO3 all COL9:8 to KP matrix
-            self.i2c.writeto_mem(
-                self.ADDR, 0x01, b"\x91"
-            )  # CFG Set the KE_IEN, INT_CFG, and AI bits
-            # Clear Interrupts
-            self.i2c.writeto_mem(self.ADDR, 0x02, b"\x01")  # INT_STAT K_INT 1 to clear
-            print("initialized keyboard")
-            self.text = "initialized"
-            self.initialized = True
+            # TODO: don't assume hexpansion port 4
+            self.hexpansion_config = HexpansionConfig(4)
+            self.init_keyboard()
         if self.button_states.get(BUTTON_TYPES["CANCEL"]):
             self.button_states.clear()
             self.minimise()
@@ -178,6 +175,50 @@ class KeyboardApp(App):
         ctx.move_to(0, 0).gray(1).text(self.text)
         if self.dialog:
             self.dialog.draw(ctx)
+
+    def init_keyboard(self):
+        print("initializing keyboard")
+        self.ADDR = 0x34
+        self.i2c = self.hexpansion_config.i2c
+        # Based on https://github.com/Hack-a-Day/2025-Communicator_Badge/blob/main/firmware/badge/hardware/keyboard.py
+        self.i2c.writeto_mem(
+            self.ADDR, 0x1D, b"\xff"
+        )  # KP_GPIO1 all ROW7:0 to KP matrix
+        self.i2c.writeto_mem(
+            self.ADDR, 0x1E, b"\xff"
+        )  # KP_GPIO2 all COL7:0 to KP matrix
+        self.i2c.writeto_mem(
+            self.ADDR, 0x1F, b"\x03"
+        )  # KP_GPIO3 all COL9:8 to KP matrix
+        self.i2c.writeto_mem(
+            self.ADDR, 0x01, b"\x91"
+        )  # CFG Set the KE_IEN, INT_CFG, and AI bits
+        # Clear Interrupts
+        self.i2c.writeto_mem(self.ADDR, 0x02, b"\x01")  # INT_STAT K_INT 1 to clear
+        irq_pin = self.hexpansion_config.pin[3]
+        irq_pin.init(irq_pin.IN, irq_pin.PULL_UP)
+        irq_pin.irq(self.handle_keyboard_irq, irq_pin.IRQ_FALLING)
+        print("initialized keyboard")
+        self.text = "initialized"
+        self.initialized = True
+
+    def handle_keyboard_irq(self, _):
+        print("interrupt")
+        num_events = self.i2c.readfrom_mem(self.ADDR, 0x03, 1)
+        for _ in range(num_events[0]):
+            e = self.i2c.readfrom_mem(self.ADDR, 0x04, 1)
+            pressed = bool(e[0] & 0x80)
+            key = e[0] & 0x7F
+            if key > 0:
+                button = BUTON_MAP.get(KEYCODES[key])
+                if button:
+                    if pressed:
+                        eventbus.emit(ButtonDownEvent(button=button))
+                    else:
+                        eventbus.emit(ButtonUpEvent(button=button))
+        print("clear interrupt")
+        # Clear interrupt
+        self.i2c.writeto_mem(self.ADDR, 0x02, b"\x01")  # INT_STAT K_INT 1 to clear
 
 
 __app_export__ = KeyboardApp
