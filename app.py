@@ -90,7 +90,23 @@ KEYCODES = [
     "RIGHTBRACKET",  # 0x50
 ]
 
-CUSTOM_KEY_MAP = {"LSHIFT": "SHIFT", "RSHIFT": "SHIFT"}
+CUSTOM_KEY_MAP = {
+    "LSHIFT": "SHIFT",
+    "RSHIFT": "SHIFT",
+    "MINUS": "-",
+    "GRAVE": "`",
+    "COMMA": ",",
+    "PERIOD": ".",
+    "SLASH": "/",
+    "SEMICOLON": ";",
+    "APOSTROPHE": "'",
+    "EQUALS": "=",
+    "BACKSLASH": "\\",
+    "LEFTBRACKET": "[",
+    "RIGHTBRACKET": "]",
+}
+
+#  for symbol in """!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"""
 
 
 class KeyboardApp(App):
