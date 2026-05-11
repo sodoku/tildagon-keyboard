@@ -37,4 +37,4 @@ description = "Driver app for external keyboards"
 # increased, we interpret this as a new version being released.
 #
 # Version number must be an string!
-version = "0.0.2"
+version = "0.0.3"
